@@ -5,7 +5,9 @@ import ControlBar from './ControlBar';
 import FaStyle from '@fortawesome/fontawesome-svg-core/styles.css';
 import CommonStyle from '../Common/styles.css';
 
-const target = document.body.appendChild(document.createElement('DIV'));
+const divElement = document.createElement('DIV');
+divElement.id = 'shadow-dom-host-id';
+const target = document.body.appendChild(divElement);
 
 declare global {
   interface Window {

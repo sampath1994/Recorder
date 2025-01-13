@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import throttle from 'lodash.throttle';
 import { CopyToClipboard } from 'react-copy-to-clipboard';
 
@@ -140,6 +140,8 @@ export default function ControlBar({ onExit }: { onExit: () => void }) {
   const handleMouseMoveRef = useRef((_: MouseEvent) => {});
   const recorderRef = useRef<Recorder | null>(null);
 
+  const [isCapturingText, setIsCapturingText] = useState<boolean>(false);
+
   const onEndRecording = () => {
     setIsFinished(true);
 
@@ -213,6 +215,37 @@ export default function ControlBar({ onExit }: { onExit: () => void }) {
     });
   }, []);
 
+  const preventEvent = useCallback((event: Event) => {
+    if (
+      event
+        .composedPath()
+        .some(
+          (node: any) =>
+            node instanceof ShadowRoot && node.host.id === 'shadow-dom-host-id'
+        )
+    ) {
+      return;
+    }
+
+    event.stopPropagation();
+    event.preventDefault();
+  }, []);
+
+  // Disable all links, forms, and buttons
+  const disableInteractions = () => {
+    // Prevent additional clicks, mouse events and key downs on the body
+    document.body.addEventListener('click', preventEvent, true);
+    document.body.addEventListener('mouseover', preventEvent, true);
+    document.body.addEventListener('keydown', preventEvent, true);
+  };
+
+  const enableInteractions = () => {
+    // Remove the event listeners added by disableInteractions
+    document.body.removeEventListener('click', preventEvent, true);
+    document.body.removeEventListener('mouseover', preventEvent, true);
+    document.body.removeEventListener('keydown', preventEvent, true);
+  };
+
   const displayedScriptType = preferredLibrary ?? ScriptType.Cypress;
 
   const rect = hoveredElement?.getBoundingClientRect();
@@ -239,7 +272,7 @@ export default function ControlBar({ onExit }: { onExit: () => void }) {
   return (
     <>
       <style>{ControlBarStyle}</style>
-      {rect != null && rect.top != null && (
+      {rect != null && rect.top != null && isCapturingText && (
         <Highlighter rect={rect} displayedSelector={displayedSelector ?? ''} />
       )}
       <div
@@ -309,6 +342,29 @@ export default function ControlBar({ onExit }: { onExit: () => void }) {
                   Move Overlay to{' '}
                   {barPosition === BarPosition.Bottom ? 'Top' : 'Bottom'}
                 </div>
+                {!isCapturingText ? (
+                  <div
+                    className="text-grey text-sm text-button"
+                    onClick={() => {
+                      recorderRef.current?.pause(true);
+                      disableInteractions();
+                      setIsCapturingText(true);
+                    }}
+                  >
+                    Capture text
+                  </div>
+                ) : (
+                  <div
+                    className="text-grey text-sm text-button"
+                    onClick={() => {
+                      enableInteractions();
+                      setIsCapturingText(false);
+                      recorderRef.current?.pause(false);
+                    }}
+                  >
+                    Stop capture text
+                  </div>
+                )}
               </div>
               <div
                 className="d-flex justify-between items-end"

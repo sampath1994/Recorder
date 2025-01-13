@@ -61,28 +61,33 @@ class Recorder {
   private currentEventHandleType: string | null = null;
   private onAction: any;
   private lastContextMenuEvent: MouseEvent | null = null;
+  private isPaused: boolean = false;
 
   private appendToRecording = (action: any) => {
-    this._recording.push(action);
-    chrome.storage.local.set({ recording: this._recording });
+    if (!this.isPaused) {
+      this._recording.push(action);
+      chrome.storage.local.set({ recording: this._recording });
 
-    if (this.onAction != null) {
-      this.onAction(action, this._recording);
+      if (this.onAction != null) {
+        this.onAction(action, this._recording);
+      }
     }
   };
 
   private updateLastRecordedAction = (actionUpdate: any) => {
-    const lastAction = this._recording[this._recording.length - 1];
-    const newAction = {
-      ...lastAction,
-      ...actionUpdate,
-    };
+    if (!this.isPaused) {
+      const lastAction = this._recording[this._recording.length - 1];
+      const newAction = {
+        ...lastAction,
+        ...actionUpdate,
+      };
 
-    this._recording[this._recording.length - 1] = newAction;
-    chrome.storage.local.set({ recording: this._recording });
+      this._recording[this._recording.length - 1] = newAction;
+      chrome.storage.local.set({ recording: this._recording });
 
-    if (this.onAction != null) {
-      this.onAction(newAction, this._recording);
+      if (this.onAction != null) {
+        this.onAction(newAction, this._recording);
+      }
     }
   };
 
@@ -159,6 +164,10 @@ class Recorder {
     window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('resize', this.debouncedOnResize, true);
     window.removeEventListener('wheel', this.onMouseWheel, true);
+  }
+
+  pause(isPaused: boolean) {
+    this.isPaused = isPaused;
   }
 
   private onMouseWheel = (event: WheelEvent) => {
