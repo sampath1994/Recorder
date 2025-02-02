@@ -33,6 +33,7 @@ import {
 
 import ControlBarStyle from './ControlBar.css';
 import { endRecording } from '../Common/endRecording';
+import FixedHighlighter from './FixedHighlighter';
 
 const ActionButton = ({
   onClick,
@@ -138,9 +139,13 @@ export default function ControlBar({ onExit }: { onExit: () => void }) {
   const [isOpen, setIsOpen] = useState<boolean>(true);
 
   const handleMouseMoveRef = useRef((_: MouseEvent) => {});
+  const handleMouseClickRef = useRef((_: MouseEvent) => {});
   const recorderRef = useRef<Recorder | null>(null);
 
   const [isCapturingText, setIsCapturingText] = useState<boolean>(false);
+  const [isHighlighterClicked, setIsHighlighterClicked] =
+    useState<boolean>(false);
+  const [rects, setRects] = useState<DOMRect[]>([]);
 
   const onEndRecording = () => {
     setIsFinished(true);
@@ -215,6 +220,41 @@ export default function ControlBar({ onExit }: { onExit: () => void }) {
     });
   }, []);
 
+  useEffect(() => {
+    handleMouseClickRef.current = (event: MouseEvent) => {
+      const rect = hoveredElement?.getBoundingClientRect();
+      if (
+        isCapturingText &&
+        rect &&
+        event.clientX >= rect.left &&
+        event.clientX <= rect.right &&
+        event.clientY >= rect.top &&
+        event.clientY <= rect.bottom
+      ) {
+        console.log('within rect clicked', event);
+        //make copy of 'rect' & update absolute positions
+        const rectCopy = new DOMRect(
+          rect.left + window.scrollX,
+          rect.top + window.scrollY,
+          rect.width,
+          rect.height
+        );
+        setRects((prevRects) => [...prevRects, rectCopy]);
+        setIsHighlighterClicked(true);
+      }
+    };
+  }, [hoveredElement]);
+
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      handleMouseClickRef.current(event);
+    };
+    document.addEventListener('click', handler, true);
+    return () => {
+      document.removeEventListener('click', handler, true);
+    };
+  }, []);
+
   const preventEvent = useCallback((event: Event) => {
     if (
       event
@@ -274,6 +314,14 @@ export default function ControlBar({ onExit }: { onExit: () => void }) {
       <style>{ControlBarStyle}</style>
       {rect != null && rect.top != null && isCapturingText && (
         <Highlighter rect={rect} displayedSelector={displayedSelector ?? ''} />
+      )}
+      {rects.length > 0 && isCapturingText && (
+        <div>
+          {/* Render something when rects array is not empty */}
+          {rects.map((rectFixed, index) => (
+            <FixedHighlighter key={index} rect={rectFixed} />
+          ))}
+        </div>
       )}
       <div
         className="ControlBar rr-ignore"
